@@ -16,6 +16,11 @@ from src.routes.clients import clients_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
+# --- INÍCIO DA NOVA CONFIGURAÇÃO DE COOKIE ---
+# Necessário para que o navegador envie o cookie de sessão entre domínios diferentes em produção.
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
 
 origins = [
     "http://localhost:5173", # Frontend de desenvolvimento local
