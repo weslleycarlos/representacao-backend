@@ -1,1 +1,32 @@
+# Ambiente Virtual Python (MUITO IMPORTANTE)
+/venv/
+.venv/
+env/
+.env/
+venv.bak/
+
+# Cache do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de ambiente local (NUNCA ENVIE PARA O GITHUB)
 .env
+.env.*
+
+# Banco de dados local SQLite (se você o usa para testes)
+*.db
+*.sqlite3
+
+# Arquivos de sistema operacional
+.DS_Store
+Thumbs.db
+
+# Arquivos do editor de código (VS Code)
+.vscode/
+
+# Arquivos de pacotes e distribuição Python
+*.egg-info/
+dist/
+build/
+*.egg
