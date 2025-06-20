@@ -1,9 +1,10 @@
 # Crie este novo arquivo: src/routes/clients.py
-
+from sqlalchemy import or_
 from flask import Blueprint, jsonify, request, session
 from src.models.models import Client, Address, Contact, db
 from src.routes.auth import login_required
 from datetime import datetime
+
 
 clients_bp = Blueprint('clients', __name__)
 
@@ -29,13 +30,6 @@ def get_client(client_id):
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-# Em src/routes/clients.py
-
-# Em src/routes/clients.py
-
-# Em src/routes/clients.py
-
-# Em src/routes/clients.py
 
 @clients_bp.route('/', methods=['POST'], strict_slashes=False)
 @login_required
@@ -219,4 +213,30 @@ def add_contact_to_client(client_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# Você pode adicionar rotas PUT e DELETE para endereços e contatos seguindo o mesmo padrão, se necessário.
+@clients_bp.route('/search', methods=['GET'], strict_slashes=False)
+@login_required
+def search_clients():
+    """Busca clientes por nome ou razão social."""
+    try:
+        search_term = request.args.get('q', '').strip()
+        
+        # Só executa a busca se o termo tiver pelo menos 3 caracteres
+        if len(search_term) < 3:
+            return jsonify([]), 200
+
+        # O operador ILIKE faz uma busca case-insensitive (não diferencia maiúsculas de minúsculas)
+        # O '%' é um coringa que significa "qualquer sequência de caracteres"
+        search_pattern = f"%{search_term}%"
+
+        clients = Client.query.filter(
+            Client.deleted_at.is_(None),
+            or_(
+                Client.razao_social.ilike(search_pattern),
+                Client.nome_fantasia.ilike(search_pattern)
+            )
+        ).order_by(Client.razao_social).limit(10).all() # Limita a 10 resultados por performance
+
+        return jsonify([client.to_dict() for client in clients]), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

@@ -209,3 +209,89 @@ def get_product_by_code(code):
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@catalog_bp.route('/import', methods=['POST'], strict_slashes=False)
+@login_required
+def import_products():
+    """
+    Importa uma lista de produtos.
+    - Cria novos produtos se o código não existir.
+    - Atualiza produtos existentes se o código já existir.
+    - Desativa (soft delete) produtos do banco que não estão na planilha.
+    """
+    try:
+        company_id = session.get('company_id')
+        if not company_id:
+            return jsonify({'error': 'Nenhuma empresa selecionada'}), 400
+
+        incoming_products = request.json
+        if not isinstance(incoming_products, list):
+            return jsonify({'error': 'O corpo da requisição deve ser uma lista de produtos'}), 400
+
+        # Mapeia produtos existentes no banco para acesso rápido
+        existing_products_query = Product.query.filter_by(company_id=company_id).all()
+        existing_products_map = {p.code: p for p in existing_products_query}
+
+        # Conjunto de códigos da planilha para checagem rápida
+        incoming_product_codes = {item.get('code') for item in incoming_products if item.get('code')}
+
+        # Contadores para o relatório final
+        created_count = 0
+        updated_count = 0
+        deactivated_count = 0
+
+        # --- LÓGICA DE SINCRONIZAÇÃO ---
+
+        # 1. Itera sobre os produtos da planilha para ATUALIZAR ou CRIAR
+        for item in incoming_products:
+            code = item.get('code')
+            if not code:
+                continue 
+
+            # Validação para garantir que o valor não seja nulo
+            value = item.get('value')
+            if value is None:
+                # Se o valor for nulo na planilha, podemos pular ou definir um padrão
+                # Neste caso, vamos pular para não inserir produtos sem preço.
+                continue
+
+            product = existing_products_map.get(code)
+            
+            if product:
+                # Produto EXISTE: atualiza os dados
+                product.description = item.get('description', product.description)
+                product.value = value
+                product.sizes = item.get('sizes', product.sizes)
+                product.deleted_at = None # Garante que o produto seja reativado se estava excluído
+                updated_count += 1
+            else:
+                # Produto NÃO EXISTE: cria um novo
+                new_product = Product(
+                    company_id=company_id,
+                    code=code,
+                    description=item.get('description'),
+                    value=value,
+                    sizes=item.get('sizes', [])
+                )
+                db.session.add(new_product)
+                created_count += 1
+        
+        # 2. Itera sobre os produtos do BANCO para DESATIVAR os que não vieram na planilha
+        for code, product in existing_products_map.items():
+            if code not in incoming_product_codes:
+                if not product.deleted_at:
+                    product.deleted_at = datetime.utcnow()
+                    deactivated_count += 1
+        
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Importação concluída com sucesso!',
+            'created': created_count,
+            'updated': updated_count,
+            'deactivated': deactivated_count
+        }), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Um erro inesperado ocorreu: {str(e)}'}), 500
