@@ -13,6 +13,7 @@ from src.routes.orders import orders_bp
 from src.routes.catalog import catalog_bp
 from src.routes.companies import companies_bp
 from src.routes.clients import clients_bp
+from src.routes.users import users_bp
 
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = 'asdf#FGSgvasgf$5$WGT'
@@ -38,6 +39,7 @@ app.register_blueprint(orders_bp, url_prefix='/api/orders')
 app.register_blueprint(catalog_bp, url_prefix='/api/catalog')
 app.register_blueprint(companies_bp, url_prefix='/api/companies')
 app.register_blueprint(clients_bp, url_prefix='/api/clients')
+app.register_blueprint(users_bp, url_prefix='/api/users')
 
 # Configuração do banco de dados
 # Em src/main.py
