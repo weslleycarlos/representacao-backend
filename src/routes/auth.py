@@ -163,25 +163,43 @@ def get_user_companies():
 
 # Em src/routes/auth.py
 
+# Em src/routes/auth.py
+
 @auth_bp.route('/me', methods=['GET'])
 @login_required
 def get_current_user():
-    """Retorna informações do usuário logado, incluindo sua permissão"""
+    """Retorna informações do usuário logado, empresa selecionada e lista de empresas."""
     try:
-        user = User.query.get(session['user_id'])
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Sessão inválida'}), 401
+            
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({'error': 'Usuário não encontrado'}), 404
+        
+        # --- INÍCIO DA NOVA LÓGICA ---
+        # Busca todas as empresas associadas ao usuário
+        user_companies_link = UserCompany.query.filter_by(user_id=user.id).all()
+        companies = [Company.query.get(link.company_id) for link in user_companies_link]
+        companies_data = [company.to_dict() for company in companies if company]
+        # --- FIM DA NOVA LÓGICA ---
         
         response_data = {
-            # user.to_dict() já inclui a 'role' graças à nossa alteração no models.py
-            'user': user.to_dict(), 
-            'company_id': session.get('company_id')
+            'user': user.to_dict(),
+            'company': None, # Será preenchido abaixo se houver
+            'companies': companies_data # Inclui a lista de empresas na resposta
         }
         
-        if session.get('company_id'):
-            company = Company.query.get(session['company_id'])
-            response_data['company'] = company.to_dict() if company else None
+        company_id = session.get('company_id')
+        if company_id:
+            company = Company.query.get(company_id)
+            if company:
+                response_data['company'] = company.to_dict()
         
         return jsonify(response_data), 200
         
     except Exception as e:
+        db.session.rollback() # Adicionado para segurança
         return jsonify({'error': str(e)}), 500
 
