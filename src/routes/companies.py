@@ -15,23 +15,29 @@ def get_companies():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-@companies_bp.route('/', methods=['POST'],strict_slashes=False)
+@companies_bp.route('/', methods=['POST'], strict_slashes=False)
 @login_required
 def create_company():
-    """Cria uma nova empresa."""
     try:
         data = request.json
         if not data or not data.get('name') or not data.get('cnpj'):
             return jsonify({'error': 'Nome e CNPJ são obrigatórios'}), 400
 
-        existing_company = Company.query.filter_by(cnpj=data['cnpj']).first()
+        sanitized_cnpj = ''.join(filter(str.isdigit, data.get('cnpj', '')))
+        existing_company = Company.query.filter_by(cnpj=sanitized_cnpj).first()
         if existing_company:
             return jsonify({'error': 'CNPJ já cadastrado'}), 400
 
-        new_company = Company(name=data['name'], cnpj=data['cnpj'])
+        new_company = Company(
+            name=data.get('name'),
+            cnpj=sanitized_cnpj,
+            state_registration=data.get('state_registration'),
+            contact_email=data.get('contact_email'),
+            contact_phone=data.get('contact_phone'),
+            website=data.get('website')
+        )
         db.session.add(new_company)
         db.session.commit()
-
         return jsonify(new_company.to_dict()), 201
     except Exception as e:
         db.session.rollback()
@@ -54,26 +60,27 @@ def delete_company(company_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-@companies_bp.route('/<int:company_id>', methods=['PUT'],strict_slashes=False)
+@companies_bp.route('/<int:company_id>', methods=['PUT'], strict_slashes=False)
 @login_required
 def update_company(company_id):
-    """Atualiza uma empresa existente."""
     try:
         company = Company.query.get_or_404(company_id)
         data = request.json
-
         if not data:
             return jsonify({'error': 'Dados são obrigatórios'}), 400
 
-        # Verifica se o novo CNPJ já existe em outra empresa
         if 'cnpj' in data and data['cnpj'] != company.cnpj:
-            existing_company = Company.query.filter_by(cnpj=data['cnpj']).first()
+            sanitized_cnpj = ''.join(filter(str.isdigit, data.get('cnpj', '')))
+            existing_company = Company.query.filter_by(cnpj=sanitized_cnpj).first()
             if existing_company:
                 return jsonify({'error': 'Este CNPJ já está em uso por outra empresa'}), 400
-        
+            company.cnpj = sanitized_cnpj
+
         company.name = data.get('name', company.name)
-        company.cnpj = data.get('cnpj', company.cnpj)
-        
+        company.state_registration = data.get('state_registration', company.state_registration)
+        company.contact_email = data.get('contact_email', company.contact_email)
+        company.contact_phone = data.get('contact_phone', company.contact_phone)
+        company.website = data.get('website', company.website)
         db.session.commit()
         return jsonify(company.to_dict()), 200
     except Exception as e:

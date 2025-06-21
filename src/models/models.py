@@ -42,24 +42,19 @@ class User(db.Model):
 
 class Company(db.Model):
     __tablename__ = 'companies'
-    
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
-    cnpj = db.Column(db.String(18), unique=True, nullable=False)
-    # --- NOVOS CAMPOS ---
-    state_registration = db.Column(db.String(20), nullable=True)
-    contact_email = db.Column(db.String(120), nullable=True)
-    contact_phone = db.Column(db.String(20), nullable=True)
-    website = db.Column(db.String(255), nullable=True)
-    deleted_at = db.Column(db.DateTime, nullable=True)
-    # ---
+    cnpj = db.Column(db.String(14), nullable=False, unique=True)
+    state_registration = db.Column(db.String(20))
+    contact_email = db.Column(db.String(255))
+    contact_phone = db.Column(db.String(20))
+    website = db.Column(db.String(255))
+    deleted_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
     user_companies = db.relationship('UserCompany', back_populates='company', cascade='all, delete-orphan')
     products = db.relationship('Product', back_populates='company')
     orders = db.relationship('Order', back_populates='company')
-
     def to_dict(self):
         return {
             'id': self.id,
